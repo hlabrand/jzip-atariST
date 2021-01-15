@@ -2,17 +2,17 @@
 #    Atari ST(e)/TT/Falcon Makefile.
 #    (It's really just the Unix makefile with one or two small changes)
 
-CC = gcc
+CC = m68k-atari-mint-gcc
 CFLAGS = -O -c -DPOSIX -DATARI -DATARIST
 LDFLAGS = -O
-LIBS = -ltermcap
+LIBS =
 
 INC = ztypes.h
 OBJS = jzip.o control.o extern.o fileio.o input.o interpre.o license.o math.o \
 	memory.o object.o operand.o osdepend.o property.o quetzal.o screen.o \
-	text.o variable.o atariio.o
+	text.o variable.o atariio.o termcap.o tputs.o tgoto.o
 
-all: jzip jzexe
+all: jzip #jzexe
 
 jzexe : jzexe.h
 	$(CC) -o $@ $(LDFLAGS) $(OBJS)
@@ -23,6 +23,13 @@ jzip : $(OBJS)
 jzip.o: $(INC) jzip.c extern.c
 	$(CC) $(CFLAGS) jzip.c
 
+tputs.o: $(INC) tputs.c
+	$(CC) $(CFLAGS) tputs.c
+tgoto.o: $(INC) tgoto.c
+	$(CC) $(CFLAGS) tgoto.c
+termcap.o: $(INC) termcap.c tputs.c tgoto.c
+	$(CC) $(CFLAGS) termcap.c
+	
 control.o: $(INC) control.c extern.c
 	$(CC) $(CFLAGS) control.c
 
@@ -75,4 +82,4 @@ unixio.o: $(INC) unixio.c extern.c
 	$(CC) $(CFLAGS) unixio.c
 
 clean :
-	-rm *.o jzip jzexe
+	-rm *.o jzip #jzexe

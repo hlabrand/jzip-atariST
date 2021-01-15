@@ -23,6 +23,8 @@
 #include <osbind.h>
 #include <mintbind.h>
 
+#include "termcap.h"
+
 /* atariio.c */
 
 #include "ztypes.h"
@@ -86,11 +88,12 @@ static int read_key(  );
 static void set_cbreak_mode(  );
 static void rundown(  );
 
-extern int tgetent(  );
+/* extern int tgetent(  );
 extern int tgetnum(  );
 extern char *tgetstr(  );
 extern char *tgoto(  );
-extern void tputs(  );
+extern void tputs(  );  // already defined in termcap.h */
+
 
 static int colours = 0;
 static void outc( c )
@@ -240,8 +243,13 @@ void initialize_screen(  )
          KR = "\033D";
       }
       if ( screen_cols == 0 && ( screen_cols = tgetnum( "co" ) ) == -1 )
+      {
          screen_cols = DEFAULT_COLS;
-
+         if ( !Getrez(  ) )         // Dancer says in his changelog for 2.01fb3:
+                                    // "If in Low Rez, the interpreter now realizes that your screen is much smaller. Your Termcap entry, however will take precedence."
+           screen_cols /= 2;        // I hope that's what he meant --HL
+      }
+      
       if ( screen_rows == 0 && ( screen_rows = tgetnum( "li" ) ) == -1 )
          screen_rows = DEFAULT_ROWS;
 
@@ -1092,3 +1100,85 @@ static void rundown(  )
    close_script(  );
    reset_screen(  );
 }                               /* rundown */
+
+
+
+// Added by Hugo Labrande, 2020-04-10
+
+/* Stuff for Atari ST Charset */
+unsigned char zscii2atarist[69] =  {
+   0x84, 0x94, 0x81, 0x8e, 0x99, 0x9a, 0x9e, 0xaf,
+   0xae, 0x89, 0x8b, 0x98,  'E',  'I', 0xa0, 0x82,
+   0xa1, 0xa2, 0xa3,  'y',  'A', 0x90,  'I',  'O',
+    'U',  'Y', 0x85, 0x8a, 0x8d, 0x95, 0x97, 0xb6,
+    'E',  'I',  'O',  'U', 0x83, 0x88, 0x8c, 0x93,
+   0x96,  'A',  'E',  'I',  'O',  'U', 0x86, 0x8f,
+   0xb3, 0xb2, 0xb0, 0xa4, 0xb1, 0xb7, 0xa5, 0xb8,
+   0x91, 0x92, 0x87, 0x80,  't',  'e',  'T',  'E',
+   0x9c, 0xb4, 0xb5, 0xa8, 0xad
+};
+
+
+
+
+/*
+ * codes_to_text
+ *
+ * Translate Z-code characters to machine specific characters. These characters
+ * include line drawing characters and international characters.
+ *
+ * The routine takes one of the Z-code characters from the following table and
+ * writes the machine specific text replacement. The target replacement buffer
+ * is defined by MAX_TEXT_SIZE in ztypes.h. The replacement text should be in a
+ * normal C, zero terminated, string.
+ *
+ * Return 0 if a translation was available, otherwise 1.
+ *
+ *  Arrow characters (0x18 - 0x1b):
+ *
+ *  0x18 Up arrow
+ *  0x19 Down arrow
+ *  0x1a Right arrow
+ *  0x1b Left arrow
+ *
+ *  International characters (0x9b - 0xa3):
+ *
+ *  215: "th", 216: "et", 217: "Th", 218: "Et"
+ *
+ *  Line drawing characters (0xb3 - 0xda):
+ *
+ *  0xb3 vertical line (|)
+ *  0xba double vertical line (#)
+ *  0xc4 horizontal line (-)
+ *  0xcd double horizontal line (=)
+ *  all other are corner pieces (+)
+ *
+ */
+
+int codes_to_text( int c, char *s )
+{
+   if ( c > 154 && c < 224 )
+   {
+      s[0] = zscii2atarist[c - 155];
+
+      if ( c == 215 || c == 217 ) // Icelandic "th"/"Th"
+      {
+         s[1] = 'h';
+         s[2] = '\0';
+      }
+      else if ( c == 216 || c == 218 ) // Icelandic "eth"/"Eth"
+      {
+         s[1] = 't';
+         s[2] = 'h';
+         s[3] = '\0';
+      }
+      else
+      {
+         s[1] = '\0';
+      }
+
+      return 0;
+   }
+
+   return 1;
+}                               /* codes_to_text */
